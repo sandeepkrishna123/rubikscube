@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Rubik's Cube Solver</title>
+  <style>
+    #controls button {
+      margin: 4px;
+      padding: 8px 12px;
+    }
+    #status {
+      font-weight: bold;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Rubik's Cube Solver</h2>
+  <div id="controls"></div>
+  <div id="svg-output"></div>
+  <p id="status"></p>
+
+  <script>
+class Rubikcube {
+  constructor() {
+    this.faces = {
+      U: Array(9).fill('W'),
+      D: Array(9).fill('Y'),
+      F: Array(9).fill('G'),
+      B: Array(9).fill('B'),
+      L: Array(9).fill('O'),
+      R: Array(9).fill('R'),
+    };
+
+    this.scrambleMoves = [];
+    this.manualMoves = [];
+    this.render();
+    this.renderControls();
+  }
+
+  getColorString() {
+    const faceOrder = ['U', 'L', 'F', 'R', 'B', 'D'];
+    const map = { W: 'w', Y: 'y', G: 'g', B: 'b', O: 'o', R: 'r' };
+    return faceOrder.map(f => this.faces[f].map(c => map[c]).join('')).join('');
+  }
+
+  render() {
+    const svgContainer = document.getElementById('svg-output');
+    svgContainer.innerHTML = getCubeSvg(this.getColorString());
+  }
+
+  rotateFace(face, logType = 'manual') {
+    const f = this.faces[face];
+    const rotated = [
+      f[6], f[3], f[0],
+      f[7], f[4], f[1],
+      f[8], f[5], f[2]
+    ];
+    this.faces[face] = rotated;
+
+    if (logType === 'manual') this.manualMoves.push(face);
+    if (logType === 'scramble') this.scrambleMoves.push(face);
+    console.log(`[${logType.toUpperCase()}] Rotated ${face}`);
+
+    this.render();
+  }
+
+  renderControls() {
+    const controlDiv = document.getElementById('controls');
+    const faces = ['F', 'B', 'U', 'D', 'L', 'R'];
+
+    faces.forEach(face => {
+      const btn = document.createElement('button');
+      btn.textContent = `Rotate ${face}`;
+      btn.onclick = () => this.rotateFace(face, 'manual');
+      controlDiv.appendChild(btn);
+     
+    });
+   
+
+    const scrambleBtn = document.createElement('button');
+    scrambleBtn.textContent = 'Scramble';
+    scrambleBtn.onclick = () => this.scramble();
+    controlDiv.appendChild(scrambleBtn);
+
+    const solveBtn = document.createElement('button');
+    solveBtn.textContent = 'Solve (All Moves)';
+    solveBtn.onclick = () => this.solve();
+    controlDiv.appendChild(solveBtn);
+  }
+
+  scramble() {
+    
+    console.log('[INFO] Scrambling Cube...');
+    this.scrambleMoves = [];
+    const faces = ['F', 'B', 'U', 'D', 'L', 'R'];
+
+    for (let i = 0; i < 10; i++) {
+      const face = faces[Math.floor(Math.random() * faces.length)];
+      this.rotateFace(face, 'scramble');
+    }
+    console.log(' Scramble sequence:', this.scrambleMoves.join(', '));
+  }
+
+  solve() {
+    const allMoves = [...this.manualMoves, ...this.scrambleMoves];
+    if (!allMoves.length) return console.warn(' No moves to undo!');
+
+    const reversed = allMoves.reverse();
+    const delay = 400;
+
+    console.log(' Solving...');
+    reversed.forEach((face, i) => {
+      setTimeout(() => {
+        for (let j = 0; j < 3; j++) this.rotateFace(face, 'solve');
+        if (i === reversed.length - 1) {
+          setTimeout(() => {
+            this.checkIfSolved();
+          }, 300);
+        }
+      }, i * delay);
+    });
+
+    console.log(' Solution steps (reverse):', reversed.map(f => `${f} (3x)`).join(', '));
+    this.manualMoves = [];
+    this.scrambleMoves = [];
+  }
+
+  checkIfSolved() {
+    const solved = JSON.stringify({
+      U: Array(9).fill('W'),
+      D: Array(9).fill('Y'),
+      F: Array(9).fill('G'),
+      B: Array(9).fill('B'),
+      L: Array(9).fill('O'),
+      R: Array(9).fill('R')
+    });
+
+    const current = JSON.stringify(this.faces);
+    const status = document.getElementById('status');
+
+    if (current === solved) {
+      status.textContent = ' Cube is solved!';
+      status.style.color = 'green';
+    } else {
+      status.textContent = ' Cube is NOT solved.';
+      status.style.color = 'red';
+    }
+  }
+}
+
+function getCubeSvg(colors) {
+  const colorMap = {
+    r: '#ff0000', g: '#00ff00', b: '#0000ff',
+    y: '#ffff00', o: '#ff8800', w: '#ffffff'
+  };
+  const size = 20, spacing = 2, grid = [];
+
+  for (let i = 0; i < 54; i++) {
+    const row = Math.floor(i / 9);
+    const col = i % 3 + ((i % 9 >= 3 && i < 27) ? ((i - 9) / 9 | 0) * 3 : 0);
+    let x, y;
+
+    if (i < 9) {
+      x = 3 * (size + spacing);
+      y = row * (size + spacing);
+    } else if (i < 36) {
+      x = ((i - 9) % 12) * (size + spacing);
+      y = 3 * (size + spacing);
+    } else {
+      x = 3 * (size + spacing);
+      y = 6 * (size + spacing);
+    }
+
+    grid.push(`<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="${colorMap[colors[i]]}" stroke="black"/>`);
+  }
+
+  return `<svg width="300" height="220">${grid.join('')}</svg>`;
+}
+
+const myCube = new Rubikcube();
+  </script>
+</body>
+</html>
